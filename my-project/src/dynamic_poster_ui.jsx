@@ -30,9 +30,9 @@ export default function DynamicPosterUI() {
     const khmerTimePeriod = getKhmerTimePeriod(hours24);
     
     return {
-      day: day.toString(),
+      day: convertToKhmer(day),
       month: month,
-      year: year.toString(),
+      year: convertToKhmer(year),
       englishDay: day.toString(),
       englishMonth: englishMonth,
       englishYear: englishYear.toString(),
@@ -53,13 +53,11 @@ export default function DynamicPosterUI() {
   const [englishYear, setEnglishYear] = useState(localDateTime.englishYear);
   const [time, setTime] = useState(localDateTime.time);
   const [englishTime, setEnglishTime] = useState(localDateTime.englishTime);
-  const [khmerPeriod, setKhmerPeriod] = useState('ព្រឹក');
-  const [currency, setCurrency] = useState('');
+  const [khmerPeriod, setKhmerPeriod] = useState(getKhmerTimePeriod(new Date().getHours()));
+  const [currency, setCurrency] = useState(''); 
   const [buyingRate, setBuyingRate] = useState('4,021');
   const [sellingRate, setSellingRate] = useState('4,030');
   const [textColor, setTextColor] = useState('#eece69');
-  const [strokeColor, setStrokeColor] = useState('#8B0000');
-  const [strokeWidth, setStrokeWidth] = useState(2);
   const [fontFamily, setFontFamily] = useState('Kantumruy Pro');
   const [daySize, setDaySize] = useState(36);
   const [monthSize, setMonthSize] = useState(36);
@@ -114,6 +112,7 @@ export default function DynamicPosterUI() {
       setEnglishDay(localDT.englishDay);
       setEnglishMonth(localDT.englishMonth);
       setEnglishYear(localDT.englishYear);
+      setKhmerPeriod(getKhmerTimePeriod(new Date().getHours()));
     };
     
     const interval = setInterval(updateDate, 86400000);
@@ -167,7 +166,6 @@ export default function DynamicPosterUI() {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
-    console.log(`${draggingElement}: x=${x.toFixed(2)}%, y=${y.toFixed(2)}%`);
     setCurrentPos({ x, y });
     const posUpdates = {
       day: () => setDayPos({ x, y }),
@@ -185,9 +183,6 @@ export default function DynamicPosterUI() {
   };
 
   const handleCanvasMouseUp = () => {
-    if (draggingElement && currentPos) {
-      console.log(`✓ ${draggingElement} final position: x=${currentPos.x.toFixed(2)}%, y=${currentPos.y.toFixed(2)}%`);
-    }
     setDraggingElement(null);
     setCurrentPos(null);
   };
@@ -204,11 +199,8 @@ export default function DynamicPosterUI() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = textColor;
-      ctx.strokeStyle = strokeColor;
       const drawText = (text, pos, fontSize) => {
         ctx.font = `600 ${fontSize}px ${fontFamily}`;
-        ctx.lineWidth = strokeWidth;
-        ctx.strokeText(text, (pos.x / 100) * img.width, (pos.y / 100) * img.height);
         ctx.fillText(text, (pos.x / 100) * img.width, (pos.y / 100) * img.height);
       };
       drawText(day, dayPos, daySize);
@@ -238,17 +230,14 @@ export default function DynamicPosterUI() {
         if (currentPosData) {
           const px = (currentPosData.x / 100) * img.width;
           const py = (currentPosData.y / 100) * img.height;
-          ctx.strokeStyle = '#00FFFF';
           ctx.lineWidth = 2;
           ctx.setLineDash([5, 5]);
           ctx.beginPath();
           ctx.moveTo(px, 0);
           ctx.lineTo(px, img.height);
-          ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(0, py);
           ctx.lineTo(img.width, py);
-          ctx.stroke();
           ctx.fillStyle = '#FF0000';
           ctx.beginPath();
           ctx.arc(px, py, 8, 0, Math.PI * 2);
@@ -262,7 +251,7 @@ export default function DynamicPosterUI() {
 
   useEffect(() => {
     renderCanvas();
-  }, [day, month, year, englishDay, englishMonth, englishYear, time, englishTime, khmerPeriod, currency, buyingRate, sellingRate, dayPos, monthPos, yearPos, englishDatePos, englishTimePos, timePos, khmerPeriodPos, currencyPos, buyingPos, sellingPos, previewImage, draggingElement, textColor, strokeColor, strokeWidth, fontFamily, daySize, monthSize, yearSize, englishDateSize, timeSize, englishTimeSize, khmerPeriodSize, currencySize, buyingSize, sellingSize]);
+  }, [day, month, year, englishDay, englishMonth, englishYear, time, englishTime, khmerPeriod, currency, buyingRate, sellingRate, dayPos, monthPos, yearPos, englishDatePos, englishTimePos, timePos, khmerPeriodPos, currencyPos, buyingPos, sellingPos, previewImage, draggingElement, textColor, , fontFamily, daySize, monthSize, yearSize, englishDateSize, timeSize, englishTimeSize, khmerPeriodSize, currencySize, buyingSize, sellingSize]);
 
   const downloadImage = () => {
     const canvas = canvasRef.current;
@@ -300,6 +289,11 @@ export default function DynamicPosterUI() {
               )}
             </div>
 
+
+             <button onClick={downloadImage} className="w-full py-4 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all">
+              💾 Download as PNG
+            </button>
+
             <div className="bg-white rounded-2xl shadow-2xl p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">🎨 Text Colors</h2>
               <div className="space-y-4">
@@ -310,17 +304,7 @@ export default function DynamicPosterUI() {
                     <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg font-mono" placeholder="#FFD700" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">Stroke Color</label>
-                  <div className="flex gap-2">
-                    <input type="color" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="w-16 h-12 rounded-lg cursor-pointer border-2 border-gray-300" />
-                    <input type="text" value={strokeColor} onChange={(e) => setStrokeColor(e.target.value)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg font-mono" placeholder="#8B0000" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-800 mb-2">Stroke Width: {strokeWidth}px</label>
-                  <input type="range" min="0" max="10" value={strokeWidth} onChange={(e) => setStrokeWidth(parseInt(e.target.value))} className="w-full" />
-                </div>
+              
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-2">Font Family</label>
                   <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none">
