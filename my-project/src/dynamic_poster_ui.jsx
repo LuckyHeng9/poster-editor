@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 export default function DynamicPosterUI() {
+  const formatNumber = (num) => {
+    return String(num).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
   const convertToKhmer = (num) => {
     const khmerNumbers = ['០', '១', '២', '៣', '៤', '៥', '៦', '៧', '៨', '៩'];
     return String(num).split('').map(digit => khmerNumbers[parseInt(digit)]).join('');
@@ -59,9 +63,9 @@ export default function DynamicPosterUI() {
   const [sellingRate, setSellingRate] = useState('4,030');
   const [textColor, setTextColor] = useState('#eece69');
   const [fontFamily, setFontFamily] = useState('Kantumruy Pro');
-  const [daySize, setDaySize] = useState(36);
-  const [monthSize, setMonthSize] = useState(36);
-  const [yearSize, setYearSize] = useState(36);
+  const [daySize, setDaySize] = useState(32);
+  const [monthSize, setMonthSize] = useState(32);
+  const [yearSize, setYearSize] = useState(32);
   const [englishDateSize, setEnglishDateSize] = useState(32);
   const [timeSize, setTimeSize] = useState(30);
   const [englishTimeSize, setEnglishTimeSize] = useState(32);
@@ -187,6 +191,7 @@ export default function DynamicPosterUI() {
     setCurrentPos(null);
   };
 
+
   const renderCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas || !previewImage) return;
@@ -211,8 +216,8 @@ export default function DynamicPosterUI() {
       drawText(time, timePos, timeSize);
       drawText(khmerPeriod, khmerPeriodPos, khmerPeriodSize);
       drawText(currency, currencyPos, currencySize);
-      drawText(buyingRate, buyingPos, buyingSize);
-      drawText(sellingRate, sellingPos, sellingSize);
+      drawText(formatNumber(buyingRate), buyingPos, buyingSize);
+      drawText(formatNumber(sellingRate), sellingPos, sellingSize);
       if (draggingElement) {
         const posMap = {
           day: dayPos,
@@ -230,19 +235,22 @@ export default function DynamicPosterUI() {
         if (currentPosData) {
           const px = (currentPosData.x / 100) * img.width;
           const py = (currentPosData.y / 100) * img.height;
+          ctx.strokeStyle = '#FF0000';
           ctx.lineWidth = 2;
           ctx.setLineDash([5, 5]);
           ctx.beginPath();
           ctx.moveTo(px, 0);
           ctx.lineTo(px, img.height);
+          ctx.stroke();
           ctx.beginPath();
           ctx.moveTo(0, py);
           ctx.lineTo(img.width, py);
+          ctx.stroke();
+          ctx.setLineDash([]);
           ctx.fillStyle = '#FF0000';
           ctx.beginPath();
           ctx.arc(px, py, 8, 0, Math.PI * 2);
           ctx.fill();
-          ctx.setLineDash([]);
         }
       }
     };
@@ -251,7 +259,7 @@ export default function DynamicPosterUI() {
 
   useEffect(() => {
     renderCanvas();
-  }, [day, month, year, englishDay, englishMonth, englishYear, time, englishTime, khmerPeriod, currency, buyingRate, sellingRate, dayPos, monthPos, yearPos, englishDatePos, englishTimePos, timePos, khmerPeriodPos, currencyPos, buyingPos, sellingPos, previewImage, draggingElement, textColor, , fontFamily, daySize, monthSize, yearSize, englishDateSize, timeSize, englishTimeSize, khmerPeriodSize, currencySize, buyingSize, sellingSize]);
+  }, [day, month, year, englishDay, englishMonth, englishYear, time, englishTime, khmerPeriod, currency, buyingRate, sellingRate, dayPos, monthPos, yearPos, englishDatePos, englishTimePos, timePos, khmerPeriodPos, currencyPos, buyingPos, sellingPos, previewImage, draggingElement, textColor, fontFamily, daySize, monthSize, yearSize, englishDateSize, timeSize, englishTimeSize, khmerPeriodSize, currencySize, buyingSize, sellingSize]);
 
   const downloadImage = () => {
     const canvas = canvasRef.current;
@@ -268,10 +276,7 @@ export default function DynamicPosterUI() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white mb-3 drop-shadow-2xl">🎨 Dynamic Poster Editor</h1>
-          <p className="text-purple-200 text-lg">Drag elements on canvas or use sliders to position</p>
-        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
           <div className="lg:col-span-2 space-y-6 overflow-y-auto max-h-screen pr-2">
             <div className="bg-white rounded-2xl shadow-2xl p-6">
@@ -293,6 +298,17 @@ export default function DynamicPosterUI() {
              <button onClick={downloadImage} className="w-full py-4 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all">
               💾 Download as PNG
             </button>
+            <div className="bg-white rounded-2xl shadow-2xl p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">✏️ Other Values</h2>
+              <div className="space-y-4">
+                 <input type="text" value={buyingRate} onChange={(e) => setBuyingRate(e.target.value)} className="w-full px-4 py-3 border-2 border-green-300 rounded-lg focus:border-green-500 outline-none" placeholder="Buying Rate" />
+                <input type="text" value={sellingRate} onChange={(e) => setSellingRate(e.target.value)} className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:border-red-500 outline-none" placeholder="Selling Rate" />
+                <input type="text" value={time} onChange={(e) => setTime(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Time (Khmer)" />
+                <input type="text" value={englishTime} onChange={(e) => setEnglishTime(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Time (English)" />
+                <input type="text" value={khmerPeriod} onChange={(e) => setKhmerPeriod(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Khmer Period (ព្រឹក/រសៀល/ល្ងាច/យប់)" />
+                <input type="text" value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Currency" />
+              </div>
+            </div>
 
             <div className="bg-white rounded-2xl shadow-2xl p-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-4">🎨 Text Colors</h2>
@@ -304,7 +320,6 @@ export default function DynamicPosterUI() {
                     <input type="text" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg font-mono" placeholder="#FFD700" />
                   </div>
                 </div>
-              
                 <div>
                   <label className="block text-sm font-bold text-gray-800 mb-2">Font Family</label>
                   <select value={fontFamily} onChange={(e) => setFontFamily(e.target.value)} className="w-full px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none">
@@ -398,21 +413,7 @@ export default function DynamicPosterUI() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-2xl p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">✏️ Other Values</h2>
-              <div className="space-y-4">
-                <input type="text" value={time} onChange={(e) => setTime(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Time (Khmer)" />
-                <input type="text" value={englishTime} onChange={(e) => setEnglishTime(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Time (English)" />
-                <input type="text" value={khmerPeriod} onChange={(e) => setKhmerPeriod(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Khmer Period (ព្រឹក/រសៀល/ល្ងាច/យប់)" />
-                <input type="text" value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 outline-none" placeholder="Currency" />
-                <input type="text" value={buyingRate} onChange={(e) => setBuyingRate(e.target.value)} className="w-full px-4 py-3 border-2 border-green-300 rounded-lg focus:border-green-500 outline-none" placeholder="Buying Rate" />
-                <input type="text" value={sellingRate} onChange={(e) => setSellingRate(e.target.value)} className="w-full px-4 py-3 border-2 border-red-300 rounded-lg focus:border-red-500 outline-none" placeholder="Selling Rate" />
-              </div>
-            </div>
-
-            <button onClick={downloadImage} className="w-full py-4 px-6 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all">
-              💾 Download as PNG
-            </button>
+            
           </div>
 
           <div className="lg:col-span-3 bg-white rounded-2xl shadow-2xl p-6">
