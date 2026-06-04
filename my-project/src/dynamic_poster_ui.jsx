@@ -152,91 +152,69 @@ export default function DynamicPosterUI() {
     return fontCacheRef.current;
   };
 
-  // ── Build SVG text overlay using foreignObject (iOS-safe) ───────────
+  // ── Build SVG text overlay using <text> elements (no foreignObject) ──
   const buildTextOverlaySVG = async (w, h) => {
     const { f600, f700 } = await getFontBase64();
+
+    // Escape XML special characters
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
     // Build CSS @font-face declarations with embedded base64 fonts
     const fontCSS = `
       @font-face {
-        font-family: 'Kantumruy Pro';
+        font-family: 'KantumruyProEmbed';
         font-weight: 500;
         font-style: normal;
         src: url(data:font/woff2;base64,${f600}) format('woff2');
       }
       @font-face {
-        font-family: 'Kantumruy Pro';
+        font-family: 'KantumruyProEmbed';
         font-weight: 600;
         font-style: normal;
         src: url(data:font/woff2;base64,${f600}) format('woff2');
       }
       @font-face {
-        font-family: 'Kantumruy Pro';
+        font-family: 'KantumruyProEmbed';
         font-weight: 700;
         font-style: normal;
         src: url(data:font/woff2;base64,${f700}) format('woff2');
       }
       @font-face {
-        font-family: 'Kantumruy Pro';
+        font-family: 'KantumruyProEmbed';
         font-weight: 800;
         font-style: normal;
         src: url(data:font/woff2;base64,${f700}) format('woff2');
       }
     `;
 
-    // Build positioned text divs for each field
-    const textDivs = FIELDS.map(({ key, x, y, color, fs, fw }) => {
+    // Build SVG <text> elements for each field
+    const textEls = FIELDS.map(({ key, x, y, color, fs, fw }) => {
       const fontSize = (fs / 100) * w;
-      const text = (vals[key] ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      return `<div style="
-        position: absolute;
-        left: ${x}%;
-        top: ${y}%;
-        transform: translate(-50%, -50%);
-        color: ${color};
-        font-size: ${fontSize}px;
-        font-weight: ${fw};
-        font-family: 'Kantumruy Pro', sans-serif;
-        white-space: nowrap;
-        text-align: center;
-        line-height: 1;
-      ">${text}</div>`;
+      const px = (x / 100) * w;
+      const py = (y / 100) * h;
+      const text = esc(vals[key] ?? '');
+      return `<text x="${px}" y="${py}" fill="${color}" font-size="${fontSize}" font-weight="${fw}" font-family="'KantumruyProEmbed', sans-serif" text-anchor="middle" dominant-baseline="central">${text}</text>`;
     }).join('\n');
 
-    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
       <defs><style>${fontCSS}</style></defs>
-      <foreignObject width="${w}" height="${h}">
-        <div xmlns="http://www.w3.org/1999/xhtml" style="
-          position: relative;
-          width: ${w}px;
-          height: ${h}px;
-          margin: 0;
-          padding: 0;
-        ">
-          ${textDivs}
-        </div>
-      </foreignObject>
+      ${textEls}
     </svg>`;
-
-    return svgStr;
   };
 
-  // ── Draw SVG string as image onto canvas ────────────────────────────
+  // ── Draw SVG string as image onto canvas (using data URL) ──────────
   const drawSVGOnCanvas = (ctx, svgStr, w, h) =>
     new Promise((resolve, reject) => {
-      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
+      const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr);
       const svgImg = new Image();
       svgImg.onload = () => {
         ctx.drawImage(svgImg, 0, 0, w, h);
-        URL.revokeObjectURL(url);
         resolve();
       };
       svgImg.onerror = (e) => {
-        URL.revokeObjectURL(url);
         reject(new Error('SVG overlay failed to load: ' + e));
       };
-      svgImg.src = url;
+      svgImg.src = dataUrl;
     });
 
   const buildBlob = () =>
