@@ -307,7 +307,8 @@ export default function DynamicPosterUI() {
     <div className="page">
       {/* ── Toolbar ─────────────────────────────────────────────── */}
       <div className="toolbar">
-        <span className="toolbar-title">📊 Poster Editor</span>
+        <span className="toolbar-title flex items-center"><img src="logo.png" className="h-[20px] mr-2" alt="" /> Poster Editor</span>
+
 
         <button className="btn-export" disabled={exporting} onClick={previewImage}>
           {exporting ? '⏳…' : '📸 Preview & Save'}
@@ -315,7 +316,7 @@ export default function DynamicPosterUI() {
 
         <button
           className="btn-export" disabled={exporting} onClick={exportPNG}
-          style={{ background:'rgba(16,185,129,.5)', boxShadow:'none', border:'1.5px solid rgba(16,185,129,.5)' }}
+          style={{ background: 'rgba(16,185,129,.5)', boxShadow: 'none', border: '1.5px solid rgba(16,185,129,.5)' }}
         >
           {exporting ? '⏳…' : '💾 Download'}
         </button>
