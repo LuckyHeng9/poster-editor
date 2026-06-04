@@ -40,7 +40,7 @@ const FIELDS = [
   { key:'khYear',   x:47.89, y:32.89, color:'#ffffff', fs:2.9,  fw:'600', maxW:14, label:'ឆ្នាំ'         },
   { key:'enDate',   x:29.92, y:37.09, color:'#E6D600', fs:2.7,  fw:'500', maxW:26, label:'English Date' },
   { key:'khTime',   x:75.50, y:32.91, color:'#ffffff', fs:2.9,  fw:'600', maxW:14, label:'ម៉ោង'         },
-  { key:'khPeriod', x:90.50, y:32.95, color:'#ffffff', fs:2.9,  fw:'600', maxW:9,  label:'នាទី'         },
+  { key:'khPeriod', x:87.50, y:32.95, color:'#ffffff', fs:2.9,  fw:'600', maxW:12, label:'នាទី'         },
   { key:'enTime',   x:79.19, y:36.98, color:'#E6D600', fs:2.7,  fw:'500', maxW:18, label:'English Time' },
   { key:'buying',   x:47.27, y:60.37, color:'#ffffff', fs:7.5,  fw:'800', maxW:28, label:'Buying'       },
   { key:'selling',  x:79.49, y:60.22, color:'#ffffff', fs:7.5,  fw:'800', maxW:28, label:'Selling'      },
@@ -142,7 +142,9 @@ export default function DynamicPosterUI() {
       }
 
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (!tmpl.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
 
       img.onload = () => {
         // iOS needs longer delay after image load before canvas draw
@@ -214,7 +216,9 @@ export default function DynamicPosterUI() {
       }
 
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (!tmpl.startsWith('data:')) {
+        img.crossOrigin = 'anonymous';
+      }
       img.onload = () => {
         setTimeout(() => {
           try {
