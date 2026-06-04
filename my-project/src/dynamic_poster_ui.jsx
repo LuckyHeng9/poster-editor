@@ -68,6 +68,18 @@ export default function DynamicPosterUI() {
     return () => clearInterval(id);
   }, []);
 
+  const posterRef = useRef(null);
+  const [posterW, setPosterW] = useState(0);
+
+  useEffect(() => {
+    if (!posterRef.current) return;
+    const ro = new ResizeObserver(entries => {
+      setPosterW(entries[0].contentRect.width);
+    });
+    ro.observe(posterRef.current);
+    return () => ro.disconnect();
+  }, []);
+
   // ── Open bottom sheet for a field ────────────────────────────────────
   const openField = useCallback((key) => {
     setDraft(vals[key] ?? '');
@@ -306,9 +318,8 @@ export default function DynamicPosterUI() {
 
         body { margin: 0; background: #030712; }
 
-        /* poster container — enables cqw font-size units */
+        /* poster container — dynamically measured via ResizeObserver */
         .poster-wrap {
-          container-type: inline-size;
           position: relative;
           width: 100%;
           aspect-ratio: 1 / 1;
@@ -580,7 +591,7 @@ export default function DynamicPosterUI() {
         </div>
 
         {/* ── Poster + tappable overlays ──────────────────────────── */}
-        <div className="poster-wrap" style={{ maxWidth: 560 }}>
+        <div className="poster-wrap" style={{ maxWidth: 560 }} ref={posterRef}>
           {/* Template image — non-interactive */}
           <img
             src={tmpl}
@@ -604,7 +615,7 @@ export default function DynamicPosterUI() {
                 left:       `${x}%`,
                 top:        `${y}%`,
                 color:      color,
-                fontSize:   `${fs}cqw`,
+                fontSize:   posterW ? `${(fs / 100) * posterW}px` : `${fs * 0.56}vw`,
                 fontWeight: fw,
                 width:      `${maxW}%`,
                 minWidth:   '1em',
