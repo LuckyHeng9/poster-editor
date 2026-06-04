@@ -1,12 +1,7 @@
-import './App.css'
 import DynamicPosterUI from './dynamic_poster_ui'
 
 function App() {
-  return (
-    <div>
-      <DynamicPosterUI/>
-    </div>
-  )
+  return <DynamicPosterUI />;
 }
 
 export default App
