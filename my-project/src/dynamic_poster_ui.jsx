@@ -98,10 +98,10 @@ export default function DynamicPosterUI() {
     const preloadFonts = async () => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px 'Kantumruy Pro'"),
-          document.fonts.load("600 12px 'Kantumruy Pro'"),
-          document.fonts.load("700 12px 'Kantumruy Pro'"),
-          document.fonts.load("800 12px 'Kantumruy Pro'")
+          document.fonts.load("normal 500 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 600 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 700 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (err) {
@@ -132,10 +132,10 @@ export default function DynamicPosterUI() {
     new Promise(async (resolve, reject) => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px 'Kantumruy Pro'"),
-          document.fonts.load("600 12px 'Kantumruy Pro'"),
-          document.fonts.load("700 12px 'Kantumruy Pro'"),
-          document.fonts.load("800 12px 'Kantumruy Pro'")
+          document.fonts.load("normal 500 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 600 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 700 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (e) {
@@ -150,10 +150,16 @@ export default function DynamicPosterUI() {
       img.onload = () => {
         // iOS needs longer delay after image load before canvas draw
         setTimeout(() => {
+          let canvas = null;
           try {
-            const canvas = document.createElement('canvas');
+            canvas = document.createElement('canvas');
             canvas.width  = img.naturalWidth;
             canvas.height = img.naturalHeight;
+            canvas.style.position = 'fixed';
+            canvas.style.left = '-9999px';
+            canvas.style.visibility = 'hidden';
+            document.body.appendChild(canvas);
+
             const ctx = canvas.getContext('2d');
 
             // iOS Safari fix: clear first, then draw
@@ -166,7 +172,7 @@ export default function DynamicPosterUI() {
               const fontSize = (fs / 100) * canvas.width;
               ctx.save();
               ctx.fillStyle    = color;
-              ctx.font         = `${fw} ${fontSize}px "Kantumruy Pro", sans-serif`;
+              ctx.font         = `normal ${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
               ctx.textAlign    = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(vals[key] ?? '', px, py);
@@ -177,10 +183,16 @@ export default function DynamicPosterUI() {
             canvas.toBlob(
               (blob) => {
                 if (blob && blob.size > 0) {
+                  if (canvas && canvas.parentNode) {
+                    document.body.removeChild(canvas);
+                  }
                   resolve(blob);
                 } else {
-                  // Fallback: convert dataURL → blob manually
                   const dataURL = canvas.toDataURL('image/png', 1.0);
+                  if (canvas && canvas.parentNode) {
+                    document.body.removeChild(canvas);
+                  }
+                  // Fallback: convert dataURL → blob manually
                   const [header, base64] = dataURL.split(',');
                   const mime = header.match(/:(.*?);/)[1];
                   const bytes = atob(base64);
@@ -193,6 +205,9 @@ export default function DynamicPosterUI() {
               1.0
             );
           } catch (err) {
+            if (canvas && canvas.parentNode) {
+              document.body.removeChild(canvas);
+            }
             reject(err);
           }
         }, 150); // iOS needs ~100-150ms after img.onload
@@ -206,10 +221,10 @@ export default function DynamicPosterUI() {
     new Promise(async (resolve, reject) => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px 'Kantumruy Pro'"),
-          document.fonts.load("600 12px 'Kantumruy Pro'"),
-          document.fonts.load("700 12px 'Kantumruy Pro'"),
-          document.fonts.load("800 12px 'Kantumruy Pro'")
+          document.fonts.load("normal 500 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 600 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 700 12px 'Kantumruy Pro'"),
+          document.fonts.load("normal 800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (e) {
@@ -222,10 +237,16 @@ export default function DynamicPosterUI() {
       }
       img.onload = () => {
         setTimeout(() => {
+          let canvas = null;
           try {
-            const canvas = document.createElement('canvas');
+            canvas = document.createElement('canvas');
             canvas.width  = img.naturalWidth;
             canvas.height = img.naturalHeight;
+            canvas.style.position = 'fixed';
+            canvas.style.left = '-9999px';
+            canvas.style.visibility = 'hidden';
+            document.body.appendChild(canvas);
+
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0);
@@ -235,14 +256,21 @@ export default function DynamicPosterUI() {
               const fontSize = (fs / 100) * canvas.width;
               ctx.save();
               ctx.fillStyle = color;
-              ctx.font = `${fw} ${fontSize}px "Kantumruy Pro", sans-serif`;
+              ctx.font = `normal ${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(vals[key] ?? '', px, py);
               ctx.restore();
             });
-            resolve(canvas.toDataURL('image/png', 1.0));
+            const dataURL = canvas.toDataURL('image/png', 1.0);
+            if (canvas && canvas.parentNode) {
+              document.body.removeChild(canvas);
+            }
+            resolve(dataURL);
           } catch (err) {
+            if (canvas && canvas.parentNode) {
+              document.body.removeChild(canvas);
+            }
             reject(err);
           }
         }, 150);
