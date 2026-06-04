@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import './App.css';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const toKh = (num) => {
@@ -97,10 +98,10 @@ export default function DynamicPosterUI() {
     const preloadFonts = async () => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px KantumruyPro"),
-          document.fonts.load("600 12px KantumruyPro"),
-          document.fonts.load("700 12px KantumruyPro"),
-          document.fonts.load("800 12px KantumruyPro")
+          document.fonts.load("500 12px 'Kantumruy Pro'"),
+          document.fonts.load("600 12px 'Kantumruy Pro'"),
+          document.fonts.load("700 12px 'Kantumruy Pro'"),
+          document.fonts.load("800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (err) {
@@ -131,10 +132,10 @@ export default function DynamicPosterUI() {
     new Promise(async (resolve, reject) => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px KantumruyPro"),
-          document.fonts.load("600 12px KantumruyPro"),
-          document.fonts.load("700 12px KantumruyPro"),
-          document.fonts.load("800 12px KantumruyPro")
+          document.fonts.load("500 12px 'Kantumruy Pro'"),
+          document.fonts.load("600 12px 'Kantumruy Pro'"),
+          document.fonts.load("700 12px 'Kantumruy Pro'"),
+          document.fonts.load("800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (e) {
@@ -165,7 +166,7 @@ export default function DynamicPosterUI() {
               const fontSize = (fs / 100) * canvas.width;
               ctx.save();
               ctx.fillStyle    = color;
-              ctx.font         = `${fw} ${fontSize}px KantumruyPro, sans-serif`;
+              ctx.font         = `${fw} ${fontSize}px "Kantumruy Pro", sans-serif`;
               ctx.textAlign    = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(vals[key] ?? '', px, py);
@@ -205,10 +206,10 @@ export default function DynamicPosterUI() {
     new Promise(async (resolve, reject) => {
       try {
         await Promise.all([
-          document.fonts.load("500 12px KantumruyPro"),
-          document.fonts.load("600 12px KantumruyPro"),
-          document.fonts.load("700 12px KantumruyPro"),
-          document.fonts.load("800 12px KantumruyPro")
+          document.fonts.load("500 12px 'Kantumruy Pro'"),
+          document.fonts.load("600 12px 'Kantumruy Pro'"),
+          document.fonts.load("700 12px 'Kantumruy Pro'"),
+          document.fonts.load("800 12px 'Kantumruy Pro'")
         ]);
         await document.fonts.ready;
       } catch (e) {
@@ -234,7 +235,7 @@ export default function DynamicPosterUI() {
               const fontSize = (fs / 100) * canvas.width;
               ctx.save();
               ctx.fillStyle = color;
-              ctx.font = `${fw} ${fontSize}px KantumruyPro, sans-serif`;
+              ctx.font = `${fw} ${fontSize}px "Kantumruy Pro", sans-serif`;
               ctx.textAlign = 'center';
               ctx.textBaseline = 'middle';
               ctx.fillText(vals[key] ?? '', px, py);
@@ -315,249 +316,7 @@ export default function DynamicPosterUI() {
   const activeField = FIELDS.find(f => f.key === active);
 
   return (
-    <>
-      {/* ── Global styles ──────────────────────────────────────────── */}
-      <style>{`
-        *, *::before, *::after { box-sizing: border-box; font-family: 'KantumruyPro', sans-serif; }
-
-        body { margin: 0; background: #030712; }
-
-        /* poster container — dynamically measured via ResizeObserver */
-        .poster-wrap {
-          position: relative;
-          width: 100%;
-          aspect-ratio: 1 / 1;
-          border-radius: 0;
-          overflow: hidden;
-          box-shadow: 0 25px 60px rgba(0,0,0,.6);
-          outline: 2px solid rgba(255,255,255,.08);
-        }
-
-        /* tappable text label overlaid on poster */
-        .overlay-label {
-          position: absolute;
-          transform: translate(-50%, -50%);
-          cursor: pointer;
-          white-space: nowrap;
-          text-align: center;
-          line-height: 1;
-          padding: 2px 4px;
-          border-radius: 4px;
-          transition: background .15s;
-          -webkit-tap-highlight-color: transparent;
-          touch-action: manipulation;
-        }
-        .overlay-label:hover,
-        .overlay-label:active {
-          background: rgba(255,255,255,.15);
-          outline: 2px solid rgba(255,255,255,.4);
-        }
-
-        /* ── bottom edit sheet ──────────────────────────────────────── */
-        .edit-sheet-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,.55);
-          backdrop-filter: blur(4px);
-          z-index: 100;
-          display: flex;
-          align-items: flex-end;
-          justify-content: center;
-          padding: 0 0 env(safe-area-inset-bottom, 0);
-          animation: fadeIn .15s ease;
-        }
-        .edit-sheet {
-          width: 100%;
-          max-width: 520px;
-          background: #111827;
-          border-radius: 20px 20px 0 0;
-          padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0));
-          animation: slideUp .2s cubic-bezier(.22,1,.36,1);
-        }
-        .edit-sheet-handle {
-          width: 36px; height: 4px;
-          background: rgba(255,255,255,.2);
-          border-radius: 2px;
-          margin: 0 auto 16px;
-        }
-        .edit-sheet-label {
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,.4);
-          margin-bottom: 10px;
-        }
-        .edit-sheet-input {
-          width: 100%;
-          background: rgba(255,255,255,.08);
-          border: 1.5px solid rgba(255,255,255,.18);
-          border-radius: 12px;
-          padding: 14px 16px;
-          color: #fff;
-          font-size: 20px;
-          font-weight: 700;
-          outline: none;
-          transition: border-color .15s, box-shadow .15s;
-          -webkit-appearance: none;
-        }
-        .edit-sheet-input:focus {
-          border-color: #34d399;
-          box-shadow: 0 0 0 3px rgba(52,211,153,.2);
-        }
-        .edit-sheet-actions {
-          display: flex;
-          gap: 10px;
-          margin-top: 12px;
-        }
-        .btn-cancel {
-          flex: 1;
-          padding: 13px;
-          border-radius: 12px;
-          border: none;
-          background: rgba(255,255,255,.08);
-          color: rgba(255,255,255,.7);
-          font-size: 15px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: background .15s;
-        }
-        .btn-cancel:active { background: rgba(255,255,255,.14); }
-        .btn-confirm {
-          flex: 2;
-          padding: 13px;
-          border-radius: 12px;
-          border: none;
-          background: #10b981;
-          color: #fff;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: background .15s, transform .1s;
-        }
-        .btn-confirm:active { background: #059669; transform: scale(.97); }
-
-        @keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes slideUp { from { transform: translateY(60px); opacity: 0 } to { transform: none; opacity: 1 } }
-
-        /* ── responsive toolbar ─────────────────────────────────────── */
-        .toolbar {
-          width: 100%;
-          max-width: 560px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-bottom: 12px;
-          flex-wrap: wrap;
-        }
-        .toolbar-title {
-          font-size: 16px;
-          font-weight: 800;
-          color: #fff;
-          margin-right: auto;
-          white-space: nowrap;
-        }
-        .btn-upload {
-          padding: 9px 16px;
-          border-radius: 12px;
-          border: 1.5px solid rgba(255,255,255,.2);
-          background: rgba(255,255,255,.08);
-          color: #fff;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background .15s;
-        }
-        .btn-upload:active { background: rgba(255,255,255,.15); }
-        .btn-export {
-          padding: 9px 18px;
-          border-radius: 12px;
-          border: none;
-          background: #10b981;
-          color: #fff;
-          font-size: 13px;
-          font-weight: 700;
-          cursor: pointer;
-          white-space: nowrap;
-          transition: background .15s, opacity .15s;
-          box-shadow: 0 4px 14px rgba(16,185,129,.35);
-        }
-        .btn-export:disabled { opacity: .5; cursor: not-allowed; }
-        .btn-export:not(:disabled):active { background: #059669; }
-
-        /* page wrapper */
-        .page {
-          min-height: 100dvh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: flex-start;
-          padding: 16px 12px;
-          background: #030712;
-        }
-
-        /* hint pill inside poster */
-        .hint-pill {
-          position: absolute;
-          bottom: 10px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(0,0,0,.55);
-          backdrop-filter: blur(6px);
-          color: rgba(255,255,255,.75);
-          font-size: 11px;
-          padding: 5px 14px;
-          border-radius: 999px;
-          pointer-events: none;
-          white-space: nowrap;
-        }
-
-        /* ── Preview modal ───────────────────────────────────────────── */
-        .preview-backdrop {
-          position: fixed;
-          inset: 0;
-          background: rgba(0,0,0,.93);
-          z-index: 300;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          padding: 16px;
-          gap: 16px;
-          animation: fadeIn .2s ease;
-        }
-        .preview-img {
-          max-width: 100%;
-          max-height: 72dvh;
-          border-radius: 8px;
-          box-shadow: 0 8px 40px rgba(0,0,0,.7);
-          -webkit-user-drag: none;
-          user-drag: none;
-          display: block;
-        }
-        .preview-hint {
-          color: rgba(255,255,255,.75);
-          font-size: 13px;
-          text-align: center;
-          line-height: 1.6;
-        }
-        .preview-close {
-          padding: 11px 36px;
-          border-radius: 12px;
-          border: 1.5px solid rgba(255,255,255,.25);
-          background: rgba(255,255,255,.1);
-          color: #fff;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          font-family: inherit;
-          transition: background .15s;
-        }
-        .preview-close:active { background: rgba(255,255,255,.2); }
-      `}</style>
-
-      <div className="page">
+    <div className="page">
         {/* ── Toolbar ─────────────────────────────────────────────── */}
         <div className="toolbar">
           <span className="toolbar-title">📊 Poster Editor</span>
@@ -690,6 +449,5 @@ export default function DynamicPosterUI() {
           </div>
         )}
       </div>
-    </>
   );
 }
