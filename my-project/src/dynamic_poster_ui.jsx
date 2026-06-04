@@ -128,89 +128,160 @@ export default function DynamicPosterUI() {
     reader.readAsDataURL(file);
   };
 
+  // ── Cached base64 font data for SVG embedding ────────────────────────
+  const fontCacheRef = useRef(null);
+
+  const getFontBase64 = async () => {
+    if (fontCacheRef.current) return fontCacheRef.current;
+
+    const toBase64 = async (url) => {
+      const res = await fetch(url);
+      const buf = await res.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary);
+    };
+
+    const [f600, f700] = await Promise.all([
+      toBase64('/fonts/kantumruy-pro-600.woff2'),
+      toBase64('/fonts/kantumruy-pro-700.woff2'),
+    ]);
+
+    fontCacheRef.current = { f600, f700 };
+    return fontCacheRef.current;
+  };
+
+  // ── Build SVG text overlay using foreignObject (iOS-safe) ───────────
+  const buildTextOverlaySVG = async (w, h) => {
+    const { f600, f700 } = await getFontBase64();
+
+    // Build CSS @font-face declarations with embedded base64 fonts
+    const fontCSS = `
+      @font-face {
+        font-family: 'Kantumruy Pro';
+        font-weight: 500;
+        font-style: normal;
+        src: url(data:font/woff2;base64,${f600}) format('woff2');
+      }
+      @font-face {
+        font-family: 'Kantumruy Pro';
+        font-weight: 600;
+        font-style: normal;
+        src: url(data:font/woff2;base64,${f600}) format('woff2');
+      }
+      @font-face {
+        font-family: 'Kantumruy Pro';
+        font-weight: 700;
+        font-style: normal;
+        src: url(data:font/woff2;base64,${f700}) format('woff2');
+      }
+      @font-face {
+        font-family: 'Kantumruy Pro';
+        font-weight: 800;
+        font-style: normal;
+        src: url(data:font/woff2;base64,${f700}) format('woff2');
+      }
+    `;
+
+    // Build positioned text divs for each field
+    const textDivs = FIELDS.map(({ key, x, y, color, fs, fw }) => {
+      const fontSize = (fs / 100) * w;
+      const text = (vals[key] ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<div style="
+        position: absolute;
+        left: ${x}%;
+        top: ${y}%;
+        transform: translate(-50%, -50%);
+        color: ${color};
+        font-size: ${fontSize}px;
+        font-weight: ${fw};
+        font-family: 'Kantumruy Pro', sans-serif;
+        white-space: nowrap;
+        text-align: center;
+        line-height: 1;
+      ">${text}</div>`;
+    }).join('\n');
+
+    const svgStr = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+      <defs><style>${fontCSS}</style></defs>
+      <foreignObject width="${w}" height="${h}">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="
+          position: relative;
+          width: ${w}px;
+          height: ${h}px;
+          margin: 0;
+          padding: 0;
+        ">
+          ${textDivs}
+        </div>
+      </foreignObject>
+    </svg>`;
+
+    return svgStr;
+  };
+
+  // ── Draw SVG string as image onto canvas ────────────────────────────
+  const drawSVGOnCanvas = (ctx, svgStr, w, h) =>
+    new Promise((resolve, reject) => {
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const svgImg = new Image();
+      svgImg.onload = () => {
+        ctx.drawImage(svgImg, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        resolve();
+      };
+      svgImg.onerror = (e) => {
+        URL.revokeObjectURL(url);
+        reject(new Error('SVG overlay failed to load: ' + e));
+      };
+      svgImg.src = url;
+    });
+
   const buildBlob = () =>
     new Promise(async (resolve, reject) => {
-      try {
-        await Promise.all([
-          document.fonts.load("normal 500 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 600 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 700 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 800 12px 'Kantumruy Pro'")
-        ]);
-        await document.fonts.ready;
-      } catch (e) {
-        console.warn('Font load warning:', e);
-      }
-
       const img = new Image();
       if (!tmpl.startsWith('data:')) {
         img.crossOrigin = 'anonymous';
       }
 
-      img.onload = () => {
-        // iOS needs longer delay after image load before canvas draw
-        setTimeout(() => {
-          let canvas = null;
-          try {
-            canvas = document.createElement('canvas');
-            canvas.width  = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            canvas.style.position = 'fixed';
-            canvas.style.left = '-9999px';
-            canvas.style.visibility = 'hidden';
-            document.body.appendChild(canvas);
+      img.onload = async () => {
+        let canvas = null;
+        try {
+          canvas = document.createElement('canvas');
+          canvas.width  = img.naturalWidth;
+          canvas.height = img.naturalHeight;
 
-            const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // iOS Safari fix: clear first, then draw
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Draw text using SVG foreignObject (proper text shaping on iOS)
+          const svgStr = await buildTextOverlaySVG(canvas.width, canvas.height);
+          await drawSVGOnCanvas(ctx, svgStr, canvas.width, canvas.height);
 
-            FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
-              const px = (x / 100) * canvas.width;
-              const py = (y / 100) * canvas.height;
-              const fontSize = (fs / 100) * canvas.width;
-              ctx.save();
-              ctx.fillStyle    = color;
-              ctx.font         = `normal ${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
-              ctx.textAlign    = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(vals[key] ?? '', px, py);
-              ctx.restore();
-            });
-
-            // iOS: toBlob can fail silently — use dataURL as fallback
-            canvas.toBlob(
-              (blob) => {
-                if (blob && blob.size > 0) {
-                  if (canvas && canvas.parentNode) {
-                    document.body.removeChild(canvas);
-                  }
-                  resolve(blob);
-                } else {
-                  const dataURL = canvas.toDataURL('image/png', 1.0);
-                  if (canvas && canvas.parentNode) {
-                    document.body.removeChild(canvas);
-                  }
-                  // Fallback: convert dataURL → blob manually
-                  const [header, base64] = dataURL.split(',');
-                  const mime = header.match(/:(.*?);/)[1];
-                  const bytes = atob(base64);
-                  const arr = new Uint8Array(bytes.length);
-                  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-                  resolve(new Blob([arr], { type: mime }));
-                }
-              },
-              'image/png',
-              1.0
-            );
-          } catch (err) {
-            if (canvas && canvas.parentNode) {
-              document.body.removeChild(canvas);
-            }
-            reject(err);
-          }
-        }, 150); // iOS needs ~100-150ms after img.onload
+          // iOS: toBlob can fail silently — use dataURL as fallback
+          canvas.toBlob(
+            (blob) => {
+              if (blob && blob.size > 0) {
+                resolve(blob);
+              } else {
+                const dataURL = canvas.toDataURL('image/png', 1.0);
+                const [header, base64] = dataURL.split(',');
+                const mime = header.match(/:(.*?);/)[1];
+                const bytes = atob(base64);
+                const arr = new Uint8Array(bytes.length);
+                for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                resolve(new Blob([arr], { type: mime }));
+              }
+            },
+            'image/png',
+            1.0
+          );
+        } catch (err) {
+          reject(err);
+        }
       };
 
       img.onerror = (e) => reject(new Error('Image failed to load: ' + e));
@@ -219,61 +290,28 @@ export default function DynamicPosterUI() {
 
   const buildDataURL = () =>
     new Promise(async (resolve, reject) => {
-      try {
-        await Promise.all([
-          document.fonts.load("normal 500 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 600 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 700 12px 'Kantumruy Pro'"),
-          document.fonts.load("normal 800 12px 'Kantumruy Pro'")
-        ]);
-        await document.fonts.ready;
-      } catch (e) {
-        console.warn('Font load warning:', e);
-      }
-
       const img = new Image();
       if (!tmpl.startsWith('data:')) {
         img.crossOrigin = 'anonymous';
       }
-      img.onload = () => {
-        setTimeout(() => {
-          let canvas = null;
-          try {
-            canvas = document.createElement('canvas');
-            canvas.width  = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            canvas.style.position = 'fixed';
-            canvas.style.left = '-9999px';
-            canvas.style.visibility = 'hidden';
-            document.body.appendChild(canvas);
+      img.onload = async () => {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width  = img.naturalWidth;
+          canvas.height = img.naturalHeight;
 
-            const ctx = canvas.getContext('2d');
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(img, 0, 0);
-            FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
-              const px = (x / 100) * canvas.width;
-              const py = (y / 100) * canvas.height;
-              const fontSize = (fs / 100) * canvas.width;
-              ctx.save();
-              ctx.fillStyle = color;
-              ctx.font = `normal ${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(vals[key] ?? '', px, py);
-              ctx.restore();
-            });
-            const dataURL = canvas.toDataURL('image/png', 1.0);
-            if (canvas && canvas.parentNode) {
-              document.body.removeChild(canvas);
-            }
-            resolve(dataURL);
-          } catch (err) {
-            if (canvas && canvas.parentNode) {
-              document.body.removeChild(canvas);
-            }
-            reject(err);
-          }
-        }, 150);
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+
+          // Draw text using SVG foreignObject (proper text shaping on iOS)
+          const svgStr = await buildTextOverlaySVG(canvas.width, canvas.height);
+          await drawSVGOnCanvas(ctx, svgStr, canvas.width, canvas.height);
+
+          resolve(canvas.toDataURL('image/png', 1.0));
+        } catch (err) {
+          reject(err);
+        }
       };
       img.onerror = reject;
       img.src = tmpl;
