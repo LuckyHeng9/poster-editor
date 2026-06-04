@@ -97,32 +97,38 @@ export default function DynamicPosterUI() {
   };
 
   // ── Shared: render poster to PNG Blob ────────────────────────────────
-  const buildBlob = () => new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width  = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0);
-      FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
-        const px = (x / 100) * img.width;
-        const py = (y / 100) * img.height;
-        const fontSize = (fs / 100) * img.width;
-        ctx.save();
-        ctx.fillStyle    = color;
-        ctx.font         = `${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
-        ctx.textAlign    = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(vals[key] ?? '', px, py);
-        ctx.restore();
-      });
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png', 1.0);
-    };
-    img.onerror = reject;
-    img.src = tmpl;
-  });
+  const buildBlob = async () => {
+    // Wait for Kantumruy Pro to fully load on ALL platforms (critical for iOS Canvas)
+    await document.fonts.load("600 48px 'Kantumruy Pro'");
+    await document.fonts.load("800 48px 'Kantumruy Pro'");
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
+          const px = (x / 100) * img.width;
+          const py = (y / 100) * img.height;
+          const fontSize = (fs / 100) * img.width;
+          ctx.save();
+          ctx.fillStyle    = color;
+          ctx.font         = `${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
+          ctx.textAlign    = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(vals[key] ?? '', px, py);
+          ctx.restore();
+        });
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png', 1.0);
+      };
+      img.onerror = reject;
+      img.src = tmpl;
+    });
+  };
 
   // ── Export PNG — desktop download ─────────────────────────────────────
   const exportPNG = async () => {
@@ -165,7 +171,6 @@ export default function DynamicPosterUI() {
     <>
       {/* ── Global styles ──────────────────────────────────────────── */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;600;700;800&display=swap');
         *, *::before, *::after { box-sizing: border-box; font-family: 'Kantumruy Pro', sans-serif; }
 
         body { margin: 0; background: #030712; }
