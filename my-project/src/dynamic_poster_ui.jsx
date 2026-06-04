@@ -55,6 +55,7 @@ export default function DynamicPosterUI() {
   const [draft, setDraft]       = useState('');      // working copy in bottom sheet
   const [exporting, setExp]     = useState(false);
   const [saving, setSaving]     = useState(false);
+  const [preview, setPreview]   = useState(null);  // data: URL for preview modal
   const sheetInputRef           = useRef(null);
   const fileRef                 = useRef(null);
 
@@ -79,6 +80,24 @@ export default function DynamicPosterUI() {
     setActive(null);
   }, [active, draft]);
 
+  // ── Preload Fonts on Mount ───────────────────────────────────────────
+  useEffect(() => {
+    const preloadFonts = async () => {
+      try {
+        await Promise.all([
+          document.fonts.load("500 12px KantumruyPro"),
+          document.fonts.load("600 12px KantumruyPro"),
+          document.fonts.load("700 12px KantumruyPro"),
+          document.fonts.load("800 12px KantumruyPro")
+        ]);
+        await document.fonts.ready;
+      } catch (err) {
+        console.warn('Failed to preload fonts on mount:', err);
+      }
+    };
+    preloadFonts();
+  }, []);
+
   // ── Focus bottom-sheet input whenever sheet opens ─────────────────────
   useEffect(() => {
     if (active && sheetInputRef.current) {
@@ -96,39 +115,124 @@ export default function DynamicPosterUI() {
     reader.readAsDataURL(file);
   };
 
-  // ── Shared: render poster to PNG Blob ────────────────────────────────
-  const buildBlob = async () => {
-    // Wait for Kantumruy Pro to fully load on ALL platforms (critical for iOS Canvas)
-    await document.fonts.load("600 48px 'Kantumruy Pro'");
-    await document.fonts.load("800 48px 'Kantumruy Pro'");
+  const buildBlob = () =>
+    new Promise(async (resolve, reject) => {
+      try {
+        await Promise.all([
+          document.fonts.load("500 12px KantumruyPro"),
+          document.fonts.load("600 12px KantumruyPro"),
+          document.fonts.load("700 12px KantumruyPro"),
+          document.fonts.load("800 12px KantumruyPro")
+        ]);
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Font load warning:', e);
+      }
 
-    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+
+      img.onload = () => {
+        // iOS needs longer delay after image load before canvas draw
+        setTimeout(() => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+
+            // iOS Safari fix: clear first, then draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
+              const px = (x / 100) * canvas.width;
+              const py = (y / 100) * canvas.height;
+              const fontSize = (fs / 100) * canvas.width;
+              ctx.save();
+              ctx.fillStyle    = color;
+              ctx.font         = `${fw} ${fontSize}px KantumruyPro, sans-serif`;
+              ctx.textAlign    = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(vals[key] ?? '', px, py);
+              ctx.restore();
+            });
+
+            // iOS: toBlob can fail silently — use dataURL as fallback
+            canvas.toBlob(
+              (blob) => {
+                if (blob && blob.size > 0) {
+                  resolve(blob);
+                } else {
+                  // Fallback: convert dataURL → blob manually
+                  const dataURL = canvas.toDataURL('image/png', 1.0);
+                  const [header, base64] = dataURL.split(',');
+                  const mime = header.match(/:(.*?);/)[1];
+                  const bytes = atob(base64);
+                  const arr = new Uint8Array(bytes.length);
+                  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                  resolve(new Blob([arr], { type: mime }));
+                }
+              },
+              'image/png',
+              1.0
+            );
+          } catch (err) {
+            reject(err);
+          }
+        }, 150); // iOS needs ~100-150ms after img.onload
+      };
+
+      img.onerror = (e) => reject(new Error('Image failed to load: ' + e));
+      img.src = tmpl;
+    });
+
+  const buildDataURL = () =>
+    new Promise(async (resolve, reject) => {
+      try {
+        await Promise.all([
+          document.fonts.load("500 12px KantumruyPro"),
+          document.fonts.load("600 12px KantumruyPro"),
+          document.fonts.load("700 12px KantumruyPro"),
+          document.fonts.load("800 12px KantumruyPro")
+        ]);
+        await document.fonts.ready;
+      } catch (e) {
+        console.warn('Font load warning:', e);
+      }
+
       const img = new Image();
       img.crossOrigin = 'anonymous';
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width  = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
-        FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
-          const px = (x / 100) * img.width;
-          const py = (y / 100) * img.height;
-          const fontSize = (fs / 100) * img.width;
-          ctx.save();
-          ctx.fillStyle    = color;
-          ctx.font         = `${fw} ${fontSize}px 'Kantumruy Pro', sans-serif`;
-          ctx.textAlign    = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(vals[key] ?? '', px, py);
-          ctx.restore();
-        });
-        canvas.toBlob(b => b ? resolve(b) : reject(new Error('toBlob failed')), 'image/png', 1.0);
+        setTimeout(() => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width  = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+            FIELDS.forEach(({ key, x, y, color, fs, fw }) => {
+              const px = (x / 100) * canvas.width;
+              const py = (y / 100) * canvas.height;
+              const fontSize = (fs / 100) * canvas.width;
+              ctx.save();
+              ctx.fillStyle = color;
+              ctx.font = `${fw} ${fontSize}px KantumruyPro, sans-serif`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(vals[key] ?? '', px, py);
+              ctx.restore();
+            });
+            resolve(canvas.toDataURL('image/png', 1.0));
+          } catch (err) {
+            reject(err);
+          }
+        }, 150);
       };
       img.onerror = reject;
       img.src = tmpl;
     });
-  };
 
   // ── Export PNG — desktop download ─────────────────────────────────────
   const exportPNG = async () => {
@@ -139,30 +243,57 @@ export default function DynamicPosterUI() {
       const a    = document.createElement('a');
       a.download = `exchange-rate-${Date.now()}.png`;
       a.href = url;
+      document.body.appendChild(a);
       a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     } finally { setExp(false); }
   };
 
-  // ── Save to Gallery — mobile (iOS + Android) ──────────────────────────
-  // Opens the native share sheet. On iOS tap "Save Image" → Camera Roll.
-  // On Android tap "Save to Photos" / "Download" → Gallery.
-  // This is the ONLY web API that can reach the device photo library.
+  // ── Save to Gallery — iOS-safe share ──────────────────────────────────
   const saveToGallery = async () => {
     setSaving(true);
     try {
       const blob = await buildBlob();
       const file = new File([blob], 'exchange-rate.png', { type: 'image/png' });
+
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Exchange Rate' });
-      } else {
-        // Fallback: open in new tab so user can long-press → Save
-        const url = URL.createObjectURL(blob);
-        window.open(url, '_blank');
+        try {
+          await navigator.share({ files: [file], title: 'Exchange Rate' });
+          return;
+        } catch (err) {
+          if (err.name === 'AbortError') return; // user cancelled
+          // fall through to download
+        }
       }
+
+      // Android / desktop fallback
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `exchange-rate-${Date.now()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
-      if (err.name !== 'AbortError') alert('Could not open share sheet.');
-    } finally { setSaving(false); }
+      console.error('saveToGallery error:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Preview — uses dataURL (reliable on iOS) ───────────────────────────
+  const previewImage = async () => {
+    setExp(true);
+    try {
+      const dataURL = await buildDataURL();
+      setPreview(dataURL); // store as dataURL string, not blob URL
+    } catch (err) {
+      console.error('previewImage error:', err);
+    } finally {
+      setExp(false);
+    }
   };
 
   const activeField = FIELDS.find(f => f.key === active);
@@ -171,7 +302,7 @@ export default function DynamicPosterUI() {
     <>
       {/* ── Global styles ──────────────────────────────────────────── */}
       <style>{`
-        *, *::before, *::after { box-sizing: border-box; font-family: 'Kantumruy Pro', sans-serif; }
+        *, *::before, *::after { box-sizing: border-box; font-family: 'KantumruyPro', sans-serif; }
 
         body { margin: 0; background: #030712; }
 
@@ -366,6 +497,49 @@ export default function DynamicPosterUI() {
           pointer-events: none;
           white-space: nowrap;
         }
+
+        /* ── Preview modal ───────────────────────────────────────────── */
+        .preview-backdrop {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,.93);
+          z-index: 300;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+          gap: 16px;
+          animation: fadeIn .2s ease;
+        }
+        .preview-img {
+          max-width: 100%;
+          max-height: 72dvh;
+          border-radius: 8px;
+          box-shadow: 0 8px 40px rgba(0,0,0,.7);
+          -webkit-user-drag: none;
+          user-drag: none;
+          display: block;
+        }
+        .preview-hint {
+          color: rgba(255,255,255,.75);
+          font-size: 13px;
+          text-align: center;
+          line-height: 1.6;
+        }
+        .preview-close {
+          padding: 11px 36px;
+          border-radius: 12px;
+          border: 1.5px solid rgba(255,255,255,.25);
+          background: rgba(255,255,255,.1);
+          color: #fff;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          font-family: inherit;
+          transition: background .15s;
+        }
+        .preview-close:active { background: rgba(255,255,255,.2); }
       `}</style>
 
       <div className="page">
@@ -374,8 +548,13 @@ export default function DynamicPosterUI() {
           <span className="toolbar-title">📊 Poster Editor</span>
 
 
-          <button className="btn-export" disabled={exporting} onClick={exportPNG}>
-            {exporting ? '⏳…' : '💾 Export PNG'}
+          <button className="btn-export" disabled={exporting} onClick={previewImage}>
+            {exporting ? '⏳…' : '📸 Preview & Save'}
+          </button>
+
+          <button className="btn-export" disabled={exporting} onClick={exportPNG}
+            style={{ background:'rgba(16,185,129,.5)', boxShadow:'none', border:'1.5px solid rgba(16,185,129,.5)' }}>
+            {exporting ? '⏳…' : '💾 Download'}
           </button>
 
           {/* Mobile save to Gallery — uses native share sheet */}
@@ -471,6 +650,28 @@ export default function DynamicPosterUI() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Preview modal ──────────────────────────────────────── */}
+        {preview && (
+          <div className="preview-backdrop" onClick={() => {
+            setPreview(null);
+          }}>
+            <img
+              className="preview-img"
+              src={preview}
+              alt="Preview"
+              onClick={e => e.stopPropagation()}
+              onContextMenu={e => e.stopPropagation()}
+            />
+            <div className="preview-hint">
+              📱 <strong>iOS / Android:</strong> Long-press the image → Save Image<br />
+              💻 <strong>Desktop:</strong> Right-click → Save image as
+            </div>
+            <button className="preview-close" onClick={() => { setPreview(null); }}>
+              ✕ Close
+            </button>
           </div>
         )}
       </div>
