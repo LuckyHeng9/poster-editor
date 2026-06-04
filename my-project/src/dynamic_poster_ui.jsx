@@ -50,7 +50,7 @@ const FIELDS = [
 export default function DynamicPosterUI() {
   const snap = getSnapshot();
   const [vals, setVals]         = useState({ ...snap, buying:'4,025', selling:'4,032' });
-  const [tmpl, setTmpl]         = useState('src/assets/x3.png');
+  const [tmpl, setTmpl]         = useState('/x3.png');
   const [active, setActive]     = useState(null);   // key of field being edited
   const [draft, setDraft]       = useState('');      // working copy in bottom sheet
   const [exporting, setExp]     = useState(false);
