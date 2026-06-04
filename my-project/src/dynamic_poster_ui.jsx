@@ -24,7 +24,7 @@ const getSnapshot = () => {
     khDay:    toKh(day),
     khMonth:  KH_MONTHS[d.getMonth()],
     khYear:   toKh(d.getFullYear()),
-    enDate:   `${EN_MONTHS[d.getMonth()]}, ${day}, ${d.getFullYear()}`,
+    enDate:   `${EN_MONTHS[d.getMonth()]} ${day} ${d.getFullYear()}`,
     khTime:   `${toKh(String(h12).padStart(2,'0'))}:${toKh(min)}`,
     enTime:   `${String(h12).padStart(2,'0')}:${min} ${h24 >= 12 ? 'PM' : 'AM'}`,
     khPeriod: khPeriod(h24),
@@ -58,6 +58,7 @@ export default function DynamicPosterUI() {
   const [tmpl, setTmpl]         = useState('/x3.png');
   const [active, setActive]     = useState(null);
   const [draft, setDraft]       = useState('');
+  const [error, setError]       = useState('');
   const [exporting, setExp]     = useState(false);
   const [saving, setSaving]     = useState(false);
   const [preview, setPreview]   = useState(null);
@@ -66,6 +67,43 @@ export default function DynamicPosterUI() {
   const posterRef               = useRef(null);
   const fontCacheRef            = useRef(null);
   const [posterW, setPosterW]   = useState(0);
+
+  // ── Validation effect ──────────────────────────────────────────────
+  useEffect(() => {
+    if (!active) {
+      setError('');
+      return;
+    }
+    if (active === 'buying' || active === 'selling') {
+      if (!/^\d,\d{3}$/.test(draft)) {
+        setError('Must be a 4-digit number formatted as X,XXX (e.g., 4,032)');
+      } else {
+        setError('');
+      }
+    } else if (active === 'enDate') {
+      if (/,/.test(draft)) {
+        setError('Commas are not allowed in the date');
+      } else {
+        setError('');
+      }
+    } else {
+      setError('');
+    }
+  }, [draft, active]);
+
+  const handleDraftChange = (val) => {
+    if (active === 'buying' || active === 'selling') {
+      let cleaned = val.replace(/[^\d,]/g, '');
+      if (/^\d{4}$/.test(cleaned)) {
+        cleaned = cleaned.replace(/^(\d)(\d{3})$/, '$1,$2');
+      }
+      setDraft(cleaned);
+    } else if (active === 'enDate') {
+      setDraft(val.replace(/,/g, ''));
+    } else {
+      setDraft(val);
+    }
+  };
 
   // ── Clock — update time fields every minute ────────────────────────
   useEffect(() => {
@@ -379,7 +417,13 @@ export default function DynamicPosterUI() {
       {/* ── Bottom edit sheet ──────────────────────────────────── */}
       {active && (
         <div className="edit-sheet-backdrop" onPointerDown={(e) => {
-          if (e.target === e.currentTarget) confirm();
+          if (e.target === e.currentTarget) {
+            if (error) {
+              setActive(null);
+            } else {
+              confirm();
+            }
+          }
         }}>
           <div className="edit-sheet">
             <div className="edit-sheet-handle" />
@@ -390,19 +434,28 @@ export default function DynamicPosterUI() {
               ref={sheetInputRef}
               className="edit-sheet-input"
               value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && confirm()}
+              onChange={e => handleDraftChange(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && !error && confirm()}
               placeholder="Type a value…"
               inputMode="text"
               autoComplete="off"
               autoCorrect="off"
               spellCheck={false}
             />
+            {error && (
+              <div className="edit-sheet-error">
+                ⚠️ {error}
+              </div>
+            )}
             <div className="edit-sheet-actions">
               <button className="btn-cancel" onPointerDown={e => { e.preventDefault(); setActive(null); }}>
                 Cancel
               </button>
-              <button className="btn-confirm" onPointerDown={e => { e.preventDefault(); confirm(); }}>
+              <button
+                className="btn-confirm"
+                disabled={!!error}
+                onPointerDown={e => { e.preventDefault(); if (!error) confirm(); }}
+              >
                 ✓ Confirm
               </button>
             </div>
