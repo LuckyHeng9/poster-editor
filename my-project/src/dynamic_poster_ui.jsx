@@ -61,6 +61,7 @@ export default function DynamicPosterUI() {
   const [error, setError]       = useState('');
   const [exporting, setExp]     = useState(false);
   const [saving, setSaving]     = useState(false);
+  const [posting, setPosting]   = useState(false);
   const [preview, setPreview]   = useState(null);
   const sheetInputRef           = useRef(null);
   const fileRef                 = useRef(null);
@@ -325,6 +326,38 @@ export default function DynamicPosterUI() {
     }
   };
 
+  // ── Post to Telegram ────────────────────────────────────────────────
+  const postToTelegram = async () => {
+    setPosting(true);
+    try {
+      const canvas = await renderPoster();
+      const blob = await canvasToBlob(canvas);
+      
+      const formData = new FormData();
+      formData.append('image', blob, 'poster.png');
+      formData.append('buying', vals.buying);
+      formData.append('selling', vals.selling);
+
+      const response = await fetch('/api/post-telegram', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        alert('✅ ' + data.message);
+      } else {
+        alert('❌ Error: ' + (data.message || 'Failed to post'));
+      }
+    } catch (err) {
+      console.error('postToTelegram error:', err);
+      alert('❌ An error occurred while posting to Telegram.');
+    } finally {
+      setPosting(false);
+    }
+  };
+
   // ── Preview (data URL — reliable on iOS) ───────────────────────────
   const previewImage = async () => {
     setExp(true);
@@ -350,6 +383,13 @@ export default function DynamicPosterUI() {
 
         <button className="btn-export" disabled={exporting} onClick={previewImage}>
           {exporting ? '⏳…' : '📸 Preview & Save'}
+        </button>
+
+        <button
+          className="btn-export" disabled={posting || exporting} onClick={postToTelegram}
+          style={{ background: 'rgba(59,130,246,.5)', boxShadow: 'none', border: '1.5px solid rgba(59,130,246,.5)', marginLeft: '8px' }}
+        >
+          {posting ? '⏳…' : '🚀 Post to Telegram'}
         </button>
 
         <button
